@@ -1,6 +1,10 @@
 Campfire by rnd
 (attempt to make gameplay more tactical)
 
+Background story:
+You find yourself on cold planet. To warm up you need to place campfire or you will freeze.
+
+
 Campfire is built with 2 cobble (cobble,empty,cobble) it can be lighted using tree fuel by punching it. It needs
 to be built within 10 block distance to other active  campfire owned by you or ADMIN or it wont be possible to light it up.
 
