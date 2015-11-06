@@ -31,7 +31,7 @@ minetest.register_node("campfire:fire_active", {
 	},
 	can_dig = function(pos, player)
 		local meta = minetest.get_meta(pos);
-		if meta:get_string("owner")~="ADMIN" then
+		if meta:get_string("owner")~="ADMIN" and not( minetest.is_protected(pos,player:get_player_name()) ) then
 			minetest.set_node(pos,{name = "air"});
 		end
 		return false
@@ -150,6 +150,8 @@ minetest.register_on_joinplayer(function(player)
 		minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN.")
 	end
 	if not campfire.count[name] then campfire.count[name] = 0 end
+	
+	player:set_physics_override({speed = 0.75})
 end
 )
 
