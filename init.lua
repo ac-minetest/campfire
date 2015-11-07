@@ -1,17 +1,19 @@
--- idea: cant stay away from your active fire too long or die, fuel cost increases with distance from spawn
+-- campfire gameplay mod by rnd
 
 local campfire = {};
-campfire.radius = 10;
-campfire.timestep = 5;
-campfire.damage = 5;
+campfire.radius = 10; -- inside this radius no damage
+campfire.damage = 5; -- damage per step when away from fire
 campfire.timeout = 10; -- how long can you stay outside fire area before you start loosing hp
 campfire.cost  = 2/100; -- cost of making new fire active, per 1 block distance from spawn
-campfire.count = {}; -- how many fires have you placed already
-campfire.fire_pos = {};
-campfire.fire_timer = {};
-local spawn_pos = (minetest.setting_get_pos("static_spawnpoint") or {x = 0, y = 2, z = 0})
+campfire.count = {}; -- how many fires have you placed already, not yet used
+campfire.fire_pos = {}; -- last known fire position
 
-local time = 0;
+campfire.fire_timer = {};
+campfire.timestep = 5; -- time step to run mod
+
+local spawn_pos = (minetest.setting_get_pos("static_spawnpoint") or {x = 0, y = 2, z = 0})
+campfire.time = 0; -- global timer
+
 
 minetest.register_node("campfire:fire_active", {
 	description = "camp fire",
@@ -29,7 +31,7 @@ minetest.register_node("campfire:fire_active", {
 			{-0.5 ,-0.5, -0.5, 0.5, 0.5, 0.5},
 		}
 	},
-	can_dig = function(pos, player)
+	can_dig = function(pos, player) -- you cant dig active fire owned my admin or inside protection
 		local meta = minetest.get_meta(pos);
 		if meta:get_string("owner")~="ADMIN" and not( minetest.is_protected(pos,player:get_player_name()) ) then
 			minetest.set_node(pos,{name = "air"});
@@ -75,10 +77,8 @@ minetest.register_node("campfire:fire", {
 			local pmeta = minetest.get_meta(p); local owner = pmeta:get_string("owner");
 			
 				fire = true;
-				--count = math.max(pmeta:get_int("count"), count);
 				meta:set_int("ignitable",1); -- new fire can be ignited with fuel
-				--meta:set_int("count",count);
-				--campfire.count[name] = count;
+				-- cost of igniting the campfire
 				cost = math.sqrt(math.pow(spawn_pos.x-pos.x,2)+math.pow(spawn_pos.y-pos.y,2)+math.pow(spawn_pos.z-pos.z,2));
 				cost = campfire.cost*cost; cost = math.ceil(cost); -- cost depends on distance from spawn?
 				meta:set_int("cost",cost);
@@ -115,51 +115,20 @@ minetest.register_node("campfire:fire", {
 		end
 		meta:set_string("infotext","active fire ( owned by ".. meta:get_string("owner") ..")"); 
 		
-		
 	end,
 		
-	can_dig = function(pos, player)
+	can_dig = function(pos, player) -- inactive fire can be dug up by everyone, everywhere
 		local candig = true
-		--minetest.check_player_privs(player:get_player_name(), {privs = true}) or (player:get_player_name()==meta:get_string("owner"));
 		minetest.set_node(pos,{name = "air"});
 		return true
 	end
 });
 
-minetest.register_craft({
-	output = "campfire:fire",
-	recipe = {
-		{"default:cobble","","default:cobble"}
-	}
-})
-
-minetest.register_on_dieplayer(function(player)
-	local name = player:get_player_name() or "";
-	campfire.fire_timer[name] = minetest.get_gametime()+60; 
-	local pos = player:getpos();
-	campfire.fire_pos[name] =  pos;
-	minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN or return to your bones ( " .. pos.x .. " " .. pos.y .. " " .. pos.z .. " ).")
-end
-)
-
-minetest.register_on_joinplayer(function(player)
-	local name = player:get_player_name() or "";
-	if not campfire.fire_pos[name] then campfire.fire_pos[name] = player:getpos(); end
-	if not campfire.fire_timer[name] then 
-		campfire.fire_timer[name] = minetest.get_gametime()+60;
-		minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN.")
-	end
-	if not campfire.count[name] then campfire.count[name] = 0 end
-	
-	player:set_physics_override({speed = 0.75})
-end
-)
-
 
 minetest.register_globalstep(function(dtime)
-	time = time + dtime
-	if time < campfire.timestep then return end
-	time = 0;
+	campfire.time = campfire.time + dtime
+	if campfire.time < campfire.timestep then return end
+	campfire.time = 0;
 
 	local t1,t2,player;
 	t2 = minetest.get_gametime(); 
@@ -194,7 +163,7 @@ minetest.register_globalstep(function(dtime)
 			if not fire then
 				if player:get_hp()>0 then
 					minetest.chat_send_player(name,"You need to get close (" .. campfire.radius .." blocks) to active campfire you own to stop taking damage ");
-					player:set_hp(player:get_hp() - campfire.damage)
+					player:set_hp(player:get_hp() - campfire.damage);
 				end
 			else 
 				campfire.fire_timer[name] = t2;
@@ -204,3 +173,37 @@ minetest.register_globalstep(function(dtime)
 	end
 end
 )
+
+
+minetest.register_on_dieplayer(function(player)
+	local name = player:get_player_name() or "";
+	campfire.fire_timer[name] = minetest.get_gametime()+60; 
+	local pos = player:getpos();
+	campfire.fire_pos[name] =  pos;
+	minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN or return to your bones ( " .. pos.x .. " " .. pos.y .. " " .. pos.z .. " ).")
+end
+)
+
+
+minetest.register_on_joinplayer(function(player)
+	local name = player:get_player_name() or "";
+	if not campfire.fire_pos[name] then campfire.fire_pos[name] = player:getpos(); end
+	if not campfire.fire_timer[name] then 
+		campfire.fire_timer[name] = minetest.get_gametime()+60;
+		minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN.")
+	end
+	if not campfire.count[name] then campfire.count[name] = 0 end
+	
+	--player:set_physics_override({speed = 0.75}) -- for testing only
+end
+)
+
+
+-- CRAFT RECIPE
+
+minetest.register_craft({
+	output = "campfire:fire",
+	recipe = {
+		{"default:cobble","","default:cobble"}
+	}
+})
