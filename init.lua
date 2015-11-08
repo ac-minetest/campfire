@@ -23,6 +23,7 @@ minetest.register_node("campfire:fire_active", {
 	sounds = default.node_sound_stone_defaults(),
 	groups = {cracky = 3},
 	is_ground_content = false,
+	walkable = false,
 	paramtype = "light",
 	light_source = 10,
 	node_box = {
@@ -33,7 +34,8 @@ minetest.register_node("campfire:fire_active", {
 	},
 	can_dig = function(pos, player) -- you cant dig active fire owned my admin or inside protection
 		local meta = minetest.get_meta(pos);
-		if meta:get_string("owner")~="ADMIN" and not( minetest.is_protected(pos,player:get_player_name()) ) then
+		local name = player:get_player_name();
+		if (meta:get_string("owner")~="ADMIN" and not( minetest.is_protected(pos,name) )) or minetest.check_player_privs(name, {privs = true}) then
 			minetest.set_node(pos,{name = "air"});
 		end
 		return false
@@ -52,6 +54,7 @@ minetest.register_node("campfire:fire", {
 	sounds = default.node_sound_stone_defaults(),
 	groups = {cracky = 3},
 	is_ground_content = false,
+	walkable = false,
 	paramtype = "light",
 	light_source = 0,
 	node_box = {
@@ -87,7 +90,7 @@ minetest.register_node("campfire:fire", {
 		end
 
 		if not fire then 
-			meta:set_string("infotext","inactive campfire ( owned by ".. name .."), place it closer (".. campfire.radius .. " blocks ) to existing active campfire owned by you or ADMIN. ");
+			meta:set_string("infotext","inactive campfire ( owned by ".. name .."), place it closer (".. campfire.radius .. " blocks ) to existing active campfire. ");
 		end
 		
 	end,
@@ -151,10 +154,10 @@ minetest.register_globalstep(function(dtime)
 				local pos = minetest.find_node_near(p, campfire.radius, "campfire:fire_active");
 				if pos then 
 					local meta = minetest.get_meta(pos); local owner = meta:get_string("owner"); 
-					if owner == name or owner == "ADMIN" then 
+					--if owner == name or owner == "ADMIN" then  -- TO DO: make fire private with sneak + punch 
 						fire = true 
 						campfire.fire_pos[name] = pos; -- set newly found campfire as new campfire position
-					end
+					--end
 				end
 			else
 				fire = true
@@ -162,7 +165,7 @@ minetest.register_globalstep(function(dtime)
 			
 			if not fire then
 				if player:get_hp()>0 then
-					minetest.chat_send_player(name,"You need to get close (" .. campfire.radius .." blocks) to active campfire you own to stop taking damage ");
+					minetest.chat_send_player(name,"You need to get close (" .. campfire.radius .." blocks) to active campfire to stop taking damage ");
 					player:set_hp(player:get_hp() - campfire.damage);
 				end
 			else 
@@ -180,7 +183,7 @@ minetest.register_on_dieplayer(function(player)
 	campfire.fire_timer[name] = minetest.get_gametime()+60; 
 	local pos = player:getpos();
 	campfire.fire_pos[name] =  pos;
-	minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN or return to your bones ( " .. pos.x .. " " .. pos.y .. " " .. pos.z .. " ).")
+	minetest.chat_send_player(name,"You have one minute to get near active campfire or return to your bones ( " .. pos.x .. " " .. pos.y .. " " .. pos.z .. " ).")
 end
 )
 
@@ -190,7 +193,7 @@ minetest.register_on_joinplayer(function(player)
 	if not campfire.fire_pos[name] then campfire.fire_pos[name] = player:getpos(); end
 	if not campfire.fire_timer[name] then 
 		campfire.fire_timer[name] = minetest.get_gametime()+60;
-		minetest.chat_send_player(name,"You have one minute to get near active campfire owned by you or ADMIN.")
+		minetest.chat_send_player(name,"You have one minute to get near active campfire.")
 	end
 	if not campfire.count[name] then campfire.count[name] = 0 end
 	
