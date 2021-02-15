@@ -1,3 +1,4 @@
+-- EMAIL VERIFICATION FOR GITHUB february 15th 2021 ac-minetest
 -- campfire gameplay mod by rnd
 
 local campfire = {};
